@@ -48,6 +48,11 @@ let rewrite ~loc f params =
        the OG let-bindings. And hopefully the compiler will feel like beta-reducing,
        thus introducing the let-bindings after type inference. *)
     bind f (fun f ->
+        let remaining_params =
+          List.filter_map (function
+              | (_, [%expr __]) -> None
+              | (_, e) -> Some e) params
+        in
         let fun_ =
           let args =
             List.mapi (fun i (arg, e) ->
@@ -73,11 +78,6 @@ let rewrite ~loc f params =
           eabstract ~loc
             params
             (pexp_apply ~loc f args)
-        in
-        let remaining_params =
-          List.filter_map (function
-              | (_, [%expr __]) -> None
-              | (_, e) -> Some e) params
         in
         eapply ~loc fun_ remaining_params)
 
