@@ -60,8 +60,7 @@ let with_inferred_type_of_arg ~loc (first_params, last_param) body first_args =
                                 generalized, but we want to avoid function values, as
                                 the closure middle end doesn't do a good job at
                                 eliminating unused ones (even ignore doesn't work). *)
-       if true then
-         (None : (_ -> unit) option) else Stdlib.(!) (Stdlib.ref (assert false))
+       if true then (None : (_ -> unit) option) else Stdlib.(!) (assert false)
      in
      if false
      then
