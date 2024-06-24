@@ -22,12 +22,14 @@ let%test_unit "type-directed disambiguation" =
   (M.f __ (A (Random.bool ()))) ()
 ;;
 
+(* an alias for |> that doesn't get rewritten by ppx_pipebang *)
+external ( >> ) : 'a -> ('a -> 'b) -> 'b = "%revapply"
+
 let%test_unit "interaction with pipelines" =
   let test_eq_int =
     (* uninline this so the generated code is easier to look at *)
     [%test_eq: int]
   in
-  let (>>) x f = f x in
   test_eq_int (1 >> (__ + Fn.id 2)) 3;
   test_eq_int (1 >> (__ + 2)) 3;
   (* ppx_pipebang *)
