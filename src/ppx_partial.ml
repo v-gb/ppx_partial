@@ -26,12 +26,13 @@ let willing_to_reexecute e =
   | _ -> false
 
 let rewrite ~loc f params =
+  (* If we have to process [f e1 __ e2] *)
   if willing_to_reexecute f
      && List.for_all (fun (_, e) -> willing_to_reexecute e) params
   then
-    (* generate cleaner code for trivial things like ~f:(__ + 1), to guarantee good
-       perf even if the compiler wouldn't optimize away our local function, as is
-       presumably the case in the bytecode -> js_of_ocaml pipeline *)
+    (* generate cleaner code [fun x -> f e1 x e2] for trivial things like ~f:(__ + 1),
+       to guarantee good perf even if the compiler wouldn't optimize away our local
+       function, as is presumably the case in the bytecode -> js_of_ocaml pipeline. *)
     let args =
       List.map (fun (arg, e) ->
           match e with
@@ -41,6 +42,11 @@ let rewrite ~loc f params =
     eabstract ~loc [partial_pvar ~loc 1]
       (pexp_apply ~loc f args)
   else
+    (* Otherwise, generate [(fun p1 p3 p2 -> f p1 p2 p3) e1 e2]. This ensures the type
+       of f is used for type-directed disambiguation of the arguments, unlike the naive
+       implementation that would let-bind all arguments first. Plus beta-redexes are
+       the OG let-bindings. And hopefully the compiler will feel like beta-reducing,
+       thus introducing the let-bindings after type inference. *)
     bind f (fun f ->
         let fun_ =
           let args =
@@ -68,19 +74,12 @@ let rewrite ~loc f params =
             params
             (pexp_apply ~loc f args)
         in
-        let new_fun_call =
-          let remaining_params =
-            List.filter_map (function
-                | (_, [%expr __]) -> None
-                | (_, e) -> Some e) params
-          in
-          eapply ~loc
-            (evar ~loc "_partial_tmpfun")
-            remaining_params
+        let remaining_params =
+          List.filter_map (function
+              | (_, [%expr __]) -> None
+              | (_, e) -> Some e) params
         in
-        [%expr
-         let _partial_tmpfun = [%e fun_] in
-             [%e new_fun_call]])  
+        eapply ~loc fun_ remaining_params)
 
 let () =
   Driver.register_transformation
