@@ -19,22 +19,36 @@ let%test_unit "type-directed disambiguation" =
       let f () (A _) = ()
     end
   in
-  (M.f __ (A (Random.bool ()))) ()
+  let module R = struct
+      type t = { r : int }
+    end
+  in
+  (* from function to parameter *)
+  (M.f __ (A (Random.bool ()))) ();
+  (* from function + earlier parameter to later parameter *)
+  ignore (List.map [M.A true] ~f:(Stdlib.(=) __ (A false)));
+  ignore (List.map [{ R.r = 1 }] ~f:(__.r));
 ;;
 
 (* an alias for |> that doesn't get rewritten by ppx_pipebang *)
 external ( >> ) : 'a -> ('a -> 'b) -> 'b = "%revapply"
 
 let%test_unit "interaction with pipelines" =
+  let module M = struct
+      type t = A of bool
+    end
+  in
   let test_eq_int =
     (* uninline this so the generated code is easier to look at *)
     [%test_eq: int]
   in
   test_eq_int (1 >> (__ + Fn.id 2)) 3;
   test_eq_int (1 >> (__ + 2)) 3;
+  (* the List.map example below doesn't work without ppx_pipebang, even without __ *)
   (* ppx_pipebang *)
   test_eq_int (1 |> (__ + Fn.id 2)) 3;
-  test_eq_int (1 |> (__ + 2)) 3
+  test_eq_int (1 |> (__ + 2)) 3;
+  ignore ([M.A true] |> List.map ~f:(Stdlib.(=) __ (A false)));
 ;;
 
 let%test_unit "__" =
