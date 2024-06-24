@@ -19,17 +19,17 @@ something_that_returns_a_string ()
 |> (fun x -> Stdio.Out_channel.write_all "/tmp/z" ~data:x)
 ```
 
-In the general case , the ppx ensures that all parameters are executed exactly
+In the general case, the ppx ensures that all parameters are executed exactly
 once, just like with a regular partial application. For instance, these two
 expressions have the exact same performance :
 
 ```ocaml
-List.filter l ~f:(Re.execp (Re.compile re) __)
-List.filter l ~f:(Re.execp (Re.compile re))
+List.filter (Re.execp (Re.compile re) __) l
+List.filter (Re.execp (Re.compile re)) l
 ```
 
 As a slight generalization, field accesses and sum constructors are allowed: 
-`List.map __.field`, `List.map (Some __)`.
+`List.map __.field l`, `List.map (Some __) l`.
 
 As an other slight generalization, it is possible to omit the function instead of an
 argument: `Option.iter o ~f:(__ ())` which means `Option.iter o ~f:(fun f -> f ())`.
@@ -61,27 +61,12 @@ The purpose is simply convenience. To be more specific :
   ((>) 0)` can easily be read as `List.filter (fun -> x > 0)`, when it actually means
   `List.filter (fun x -> 0 > x)`. Writing `List.filter (__ > 0)` is clearer.
 
-- This allows easily dropping optional parameters. For instance, in:
-
+- Very occasionaly, this can be used to drop optional parameters by "eta-expansion",
+  like so:
     ```ocaml
-      Markup.string src
-      |> (match flavor with
-          | `Xml -> Markup.parse_xml __
-          | `Html -> Markup.parse_html __)
-      |> Markup.signals
-      |> transform
-      |> (match flavor with
-          | `Xml -> Markup.write_xml __
-          | `Html -> Markup.write_html __)
-      |> Markup.to_string
+       match flavor with
+       | `Xml -> Markup.parse_xml __ (* wouldn't type without __, due to optional parameters *)
+       | `Html -> Markup.parse_html __
     ```
-
-    `Markup.parse_{xml,html}` have different optional parameters, and thus 
-    
-    ```ocaml
-      match flavor with
-      | `Xml -> Markup.parse_xml
-      | `Html -> Markup.parse_html
-    ```
-
-    would be ill-typed. Same thing with `Markup.write_{xml,html}`.
+  or it can be used to omit a parameter that's not the usual one, say `List.iter __ l` or
+  `List.iter ~f:__ l`.
