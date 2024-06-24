@@ -51,7 +51,7 @@ let%test_unit "interaction with pipelines" =
   ignore ([M.A true] |> List.map ~f:(Stdlib.(=) __ (A false)));
 ;;
 
-let%test_unit "__" =
+let%test_unit "data types" =
   let _ = List.map [] ~f:__.contents in
   let _ = List.map [] ~f:(Some __) in
   let _ = List.map [] ~f:(`First __) in
