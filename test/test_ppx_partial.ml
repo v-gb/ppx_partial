@@ -56,3 +56,37 @@ let%test_unit "__" =
   let _ = List.map [] ~f:(Some __) in
   let _ = List.map [] ~f:(`First __) in
   ()
+
+
+let f x y z = (x, y, z)
+let xxxxx_checkcmm r =
+  (* compiled by closure as
+     List.map
+       (let partial3 = side-effect; 3 in
+        let partial1 = side-effectl 1 in
+        static_closure)
+       static_list
+     where
+     let static_closure partial2 = (1, partial2, 3)
+  *)
+  Stdlib.List.map
+    (f (r := "b" :: !r; 1) __ (r := "c" :: !r; 2))
+    [ 1.; 2. ]
+
+let yyyyy_checkcmm f r =
+  (* compiled by closure as
+     List.map
+       (let partial3 = side-effect; 3 in
+        let partial1 = side-effectl 1 in
+        alloc-closure codepointer f 1 3)
+       static_list
+     where
+     let codepointer partial2 env = caml_apply3 1 partial2 3 env.f
+
+     which seems fine (no need to close over partial1 partial3 if they are static,
+     but that would also happen with hand written code). That indicates closure does
+     eliminate all our static ifs without leaving things behind.
+  *)
+  Stdlib.List.map
+    (f (r := "b" :: !r; 1) __ (r := "c" :: !r; 2))
+    [ 1.; 2. ]

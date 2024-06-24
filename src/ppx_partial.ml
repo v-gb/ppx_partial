@@ -25,7 +25,10 @@ let willing_to_reexecute e =
   | { pexp_desc = (Pexp_ident _ | Pexp_constant _ | Pexp_construct (_, None)); _ } -> true
   | _ -> false
 
-let with_inferred_type_of_arg ~loc (params, last_param_e) body args =
+let beta_redex ~loc params body exprs =
+    eapply ~loc (eabstract ~loc params body) exprs
+
+let with_inferred_type_of_arg ~loc (first_params, last_param) body first_args =
   (* If we're compiling [f e1 __ e3], we want type directed disambiguation to be
      preserved, meaning to work the same as in [fun x -> f e1 x e2].
 
@@ -34,37 +37,44 @@ let with_inferred_type_of_arg ~loc (params, last_param_e) body args =
 
      One reasonably simple improvement is to replace the let-binding by the OG
      let-binding, meaning a beta-redex : [(fun v1 v3 v2 -> f v1 v2 v3) e1 e3] (note the
-     order of parameters). With this, [e1] and [e3] are according to what f expects,
-     but [e3] is still not typed according to what the context expects v2 to be (in
-     things like [List.map l ~f:..], provided List.map is defined nicely like Base does
-     but unlike what the Stdlib does, the type of the elements of l flows into ~f's
-     argument, and this is very useful).
+     order of parameters). With this, [e1] and [e3] are typed according to what f
+     expects, but [e3] is still not typed according to what the context expects v2 to
+     be (in things like [List.map l ~f:..], provided List.map is defined nicely like
+     Base does but unlike what the Stdlib does, the type of the elements of l flows
+     into ~f's argument, and this is very useful).
 
      So the next and last trick is to generate [(fun v1 v3 (v2 : 'v2) -> f v1 v2 v3) e1
      e3 : 'v2 -> _], so the expected type of the resulting function flows into v2,
      which flows into v3, which then flows into [e3]. That solution doesn't concretely
      work, because adding an annotation (_ : 'fresh) around expressions can cause type
-     errors. So instead we use dead code that encodes the right type information. *)
+     errors. So instead we use dead code that encodes the same flow of type inference. *)
   if false (* Maybe we should make this simpler version available as a flag *)
-  then eapply ~loc (eabstract ~loc params body) args
+  then
+    beta_redex ~loc first_params
+      [%expr (); fun [%p last_param] -> [%e body]]
+      first_args
   else
     [%expr
-     let _partial_arg_type = (* 'v2 -> unit, for a fresh non generalized 'v2 *)
-       if true then Stdlib.ignore else Stdlib.(!) (Stdlib.ref (assert false))
+     let _partial_arg_type = (* ('v2 -> unit) option, for a fresh non generalized 'v2.
+                                We want contravariant in 'v2 so the variable is non
+                                generalized, but we want to avoid function values, as
+                                the closure middle end doesn't do a good job at
+                                eliminating unused ones (even ignore doesn't work). *)
+       if true then
+         (None : (_ -> unit) option) else Stdlib.(!) (Stdlib.ref (assert false))
      in
      if false
      then
        (* unify 'v2 with the expected type of v2 *)
-       (fun x -> _partial_arg_type x; assert false)
-     else [%e eapply ~loc
-              [%expr
-                  if false
-                  then
-                    (* force the v2 parameter to have type 'v2 *)
-                    [%e eabstract ~loc params
-                        [%expr _partial_arg_type [%e last_param_e]; assert false]]
-                  else [%e eabstract ~loc params body]
-              ] args]
+       (fun x -> (match _partial_arg_type with None -> () | Some f -> f x); assert false)
+     else [%e beta_redex ~loc first_params
+                [%expr
+                    if false
+                    then fun x -> (match _partial_arg_type with
+                                   | None -> ()
+                                   | Some f -> f x); assert false
+                    else fun [%p last_param] -> [%e body]]
+                first_args]
     ]
 
 let rewrite ~loc f params =
@@ -98,7 +108,7 @@ let rewrite ~loc f params =
                  arg, partial_evar ~loc:e.pexp_loc i
                ) params)
         in
-        let params, last_param_e =
+        let first_params, last_param =
           let last_param = ref None in
           let first_params =
             let i = ref (-1) in
@@ -106,22 +116,20 @@ let rewrite ~loc f params =
                 i := !i + 1;
                 let param = partial_pvar ~loc:e.pexp_loc !i in
                 match e with
-                | [%expr __] ->
-                   last_param := Some (param, partial_evar ~loc:e.pexp_loc !i);
-                   None
+                | [%expr __] -> last_param := Some param; None
                 | _ -> Some param
               ) params
           in
-          let last_param_p, last_param_e =
+          let last_param =
             match !last_param with
             | None -> assert false
-            | Some (p, e) -> p, e
+            | Some p -> p
           in
-          first_params @ [ last_param_p ], last_param_e
+          first_params, last_param
         in
         with_inferred_type_of_arg
           ~loc
-          (params, last_param_e)
+          (first_params, last_param)
           body
           remaining_params)
 
