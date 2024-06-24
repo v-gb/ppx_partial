@@ -66,8 +66,9 @@ let () =
                    | [%expr __] -> acc + 1
                    | _ -> acc) 0 params
              in
-             if count > 0
-             then
+             if count = 0
+             then e
+             else
                if count > 1
                then
                  let params =
@@ -141,7 +142,6 @@ let () =
                        [%expr
                         let _partial_tmpfun = [%e fun_] in
                             [%e new_fun_call]])
-             else e
           | _ -> e
        end#structure str
     )
