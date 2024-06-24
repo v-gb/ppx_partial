@@ -28,8 +28,11 @@ List.filter l ~f:(Re.execp (Re.compile re) __)
 List.filter l ~f:(Re.execp (Re.compile re))
 ```
 
-As a slight generalization, field accesses and sum constructors are allowed:
+As a slight generalization, field accesses and sum constructors are allowed: 
 `List.map __.field`, `List.map (Some __)`.
+
+As an other slight generalization, it is possible to omit the function instead of an
+argument: `Option.iter o ~f:(__ ())` which means `Option.iter o ~f:(fun f -> f ())`.
 
 # What it doesn't do
 

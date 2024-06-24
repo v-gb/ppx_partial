@@ -28,6 +28,8 @@ let%test_unit "type-directed disambiguation" =
   (* from function + earlier parameter to later parameter *)
   ignore (List.map [M.A true] ~f:(Stdlib.(=) __ (A false)));
   ignore (List.map [{ R.r = 1 }] ~f:(__.r));
+  (* same thing, but with the function instead of a parameter *)
+  Option.iter (Some M.f) ~f:(__ () (A true));
 ;;
 
 (* an alias for |> that doesn't get rewritten by ppx_pipebang *)

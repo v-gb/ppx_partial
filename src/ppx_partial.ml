@@ -85,14 +85,14 @@ let rewrite ~loc f params =
     (* generate cleaner code [fun x -> f e1 x e2] for trivial things like ~f:(__ + 1),
        to guarantee good perf even if the compiler wouldn't optimize away our local
        function, as is presumably the case in the bytecode -> js_of_ocaml pipeline. *)
-    let args =
-      List.map (fun (arg, e) ->
-          match e with
-          | [%expr __] -> (arg, partial_evar ~loc:e.pexp_loc 1)
-          | _ -> (arg, e)) params
+    let replace_placeholder e =
+      match e with
+      | [%expr __] -> partial_evar ~loc:e.pexp_loc 1
+      | _ -> e
     in
+    let args = List.map (fun (arg, e) -> (arg, replace_placeholder e)) params in
     eabstract ~loc [partial_pvar ~loc 1]
-      (pexp_apply ~loc f args)
+      (pexp_apply ~loc (replace_placeholder f) args)
   else
     (* Otherwise, generate [(fun p1 p3 p2 -> f p1 p2 p3) e1 e2] (roughly, see
        with_inferred_type_of_arg for the gory details). *)
@@ -103,7 +103,10 @@ let rewrite ~loc f params =
               | (_, e) -> Some e) params
         in
         let body =
-          pexp_apply ~loc f
+          pexp_apply ~loc
+            (match f with
+             | [%expr __] -> partial_evar ~loc:f.pexp_loc (-1)
+             | _ -> f)
             (List.mapi (fun i (arg, e) ->
                  arg, partial_evar ~loc:e.pexp_loc i
                ) params)
@@ -122,7 +125,7 @@ let rewrite ~loc f params =
           in
           let last_param =
             match !last_param with
-            | None -> assert false
+            | None -> partial_pvar ~loc:f.pexp_loc (-1)
             | Some p -> p
           in
           first_params, last_param
@@ -172,25 +175,28 @@ let () =
                List.fold_left (fun acc (_, e) ->
                    match e with
                    | [%expr __] -> acc + 1
-                   | _ -> acc) 0 params
+                   | _ -> acc)
+                 (match f with
+                  | [%expr __] -> 1
+                  | _ -> 0)
+                 params
              in
              if count = 0
              then e
              else
                if count > 1
                then
-                 let params =
-                   List.map (fun (arg, e) ->
-                       arg,
-                       match e with
-                       | [%expr __] ->
-                          pexp_extension
-                            ~loc:e.pexp_loc
-                            (Location.error_extensionf ~loc:e.pexp_loc
-                               "ppx_partial: only one __ argument is supported per function call")
-                       | e -> e
-                     ) params
+                 let replace_placeholder e =
+                   match e with
+                   | [%expr __] ->
+                      pexp_extension
+                        ~loc:e.pexp_loc
+                        (Location.error_extensionf ~loc:e.pexp_loc
+                           "ppx_partial: only one __ argument is supported per function call")
+                   | e -> e
                  in
+                 let f = replace_placeholder f in
+                 let params = List.map (fun (arg, e) -> arg, replace_placeholder e) params in
                  { e with pexp_desc = Pexp_apply (f, params) }
                else rewrite ~loc:e.pexp_loc f params
           | _ -> e
