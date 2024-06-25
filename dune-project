@@ -3,14 +3,9 @@
 (name ppx_partial)
 
 (generate_opam_files true)
-
-(source
- (github v-gb/ppx_partial))
-
+(source (github v-gb/ppx_partial))
 (authors "Valentin Gatien-Baron")
-
 (maintainers "Valentin Gatien-Baron")
-
 (license ISC)
 
 (package
@@ -26,12 +21,16 @@ This can be convenient in pipelines or to build arguments for `List.map`
 or any places that need single-argument functions.
 
 As a slight generalization, `__.record_field` and `Sum_constructor __`
-allow shortening `fun x -> x.record_field` and `(fun x -> Sum_constructor x)`.
+allow shortening `(fun x -> x.record_field)` and `(fun x -> Sum_constructor x)`.
 ")
  (depends
-  (ppxlib
-   (>= 0.32.1))
-  ocaml
-  dune)
+  (ppxlib (>= 0.32.1))
+  (ocaml (>= 4.14.0))
+  dune
+  (base :with-test)
+  (ppx_pipebang :with-test)
+  (ppx_inline_test :with-test)
+  (ppx_assert :with-test)
+ )
  (tags
   (syntax ppx)))

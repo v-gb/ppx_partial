@@ -11,7 +11,7 @@ This can be convenient in pipelines or to build arguments for `List.map`
 or any places that need single-argument functions.
 
 As a slight generalization, `__.record_field` and `Sum_constructor __`
-allow shortening `fun x -> x.record_field` and `(fun x -> Sum_constructor x)`.
+allow shortening `(fun x -> x.record_field)` and `(fun x -> Sum_constructor x)`.
 """
 maintainer: ["Valentin Gatien-Baron"]
 authors: ["Valentin Gatien-Baron"]
@@ -21,8 +21,12 @@ homepage: "https://github.com/v-gb/ppx_partial"
 bug-reports: "https://github.com/v-gb/ppx_partial/issues"
 depends: [
   "ppxlib" {>= "0.32.1"}
-  "ocaml"
+  "ocaml" {>= "4.14.0"}
   "dune" {>= "3.15"}
+  "base" {with-test}
+  "ppx_pipebang" {with-test}
+  "ppx_inline_test" {with-test}
+  "ppx_assert" {with-test}
   "odoc" {with-doc}
 ]
 build: [
