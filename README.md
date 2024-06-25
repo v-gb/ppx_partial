@@ -1,7 +1,7 @@
 # What it does
 
 ppx_partial is a preprocessor that makes it possible to do partial applications
-on any parameter of a function, not necessarily the last unlabelled one:
+that omit any parameter of a function, rather than necessarily a suffix of unlabelled arguments with currying:
 
 ```ocaml
 something_that_returns_a_string ()
