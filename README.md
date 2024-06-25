@@ -1,5 +1,3 @@
-% ppx_partial
-
 # What it does
 
 ppx_partial is a preprocessor that makes it possible to do partial applications
