@@ -1,7 +1,7 @@
 # What it does
 
-ppx_partial is a preprocessor that makes it possible to do partial applications
-that omit any parameter of a function, rather than necessarily a suffix of unlabelled arguments with currying:
+ppx_partial provides syntax for building single argument functions that look and behave
+similar to partial applications:
 
 ```ocaml
 something_that_returns_a_string ()
@@ -17,14 +17,18 @@ something_that_returns_a_string ()
 |> (fun x -> Stdio.Out_channel.write_all "/tmp/z" ~data:x)
 ```
 
-In the general case, the ppx ensures that all parameters are executed exactly
-once, just like with a regular partial application. For instance, these two
-expressions have the exact same performance :
+In general, the ppx ensures that parameters are executed exactly once, just like with a
+regular partial application. For instance, these two expressions have the exact same
+performance:
 
 ```ocaml
 List.filter (Re.execp (Re.compile re) __) l
 List.filter (Re.execp (Re.compile re)) l
 ```
+
+This syntax may appear unnecessary at first, given that that ocaml functions are
+curried, but note that neither occurrence of `__` in the first example can be replaced
+by a partial application.
 
 As a slight generalization, field accesses and sum constructors are allowed: 
 `List.map __.field l`, `List.map (Some __) l`.
@@ -38,9 +42,13 @@ This is *not* a general lighter syntax for short anonymous functions.  If you
 want a lightweight syntax for `(fun x -> f (g x))` or `(fun x -> x * 2 + 1)`,
 this ppx isn't providing such things.
 
+Only a single placeholder is supported, so things like `f __ __ e1` are not supported.
+There are probably no technical obstacles, but I haven't seen a compelling reason to do
+this.
+
 # Why
 
-The purpose is simply convenience. To be more specific :
+The purpose is simply convenience. To be more specific:
 
 - `__.field` and `Some __` should be self-explanatory.
 

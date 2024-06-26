@@ -11,11 +11,12 @@
 (package
  (name ppx_partial)
  (synopsis
-  "Syntax for a partial application of functions that omits any argument")
+  "Syntax for a partial application of functions that omits any single argument")
  (description
   "
-This provides a syntax `f e1 __ e3` that's means `(fun x -> f e1 x e3)`,
-except that `e1` and `e3` are evaluated just once.
+This provides a syntax `f e1 __ e3` that means `(fun x -> f e1 x e3)`,
+except that `e1` and `e3` are evaluated exactly once. Only one `__` is
+supported.
 
 This can be convenient in pipelines or to build arguments for `List.map`
 or any places that need single-argument functions.
